@@ -1,41 +1,98 @@
-/* этот скрипт использует такие имена классов:
-✦ like-icon — для svg-иконки анимированного сердца
-✦ card__like-button — для кнопки Like рядом с иконкой
-✦ card__icon-button — для кнопки, оборачивающей иконку
-✦ card__icon-button — для кнопки, оборачивающей иконку
-✦ is-liked — для обозначения состояния лайкнутой иконки в виде сердца
-✦ button__text — для обозначения текстового элемента внутри кнопки
-Если эти классы поменять в HTML, скрипт перестанет работать. Будьте аккуратны.
-*/
+const formElement = document.querySelector('#todo-form');
+const inputElement = document.querySelector('#todo-input');
+const listElement = document.querySelector('#todo-list');
+const template = document.querySelector('#todo-item-template');
 
-const likeHeartArray = document.querySelectorAll('.like-icon');
-const likeButtonArray = document.querySelectorAll('.card__like-button');
-const iconButtonArray = document.querySelectorAll('.card__icon-button');
+let items = [
+  'Выучить JavaScript',
+  'Сделать To-Do проект',
+  'Изучить localStorage',
+  'Написать createItem',
+  'Добавить обработчики',
+  'Сдать проект на отлично!'
+];
 
-iconButtonArray.forEach((iconButton, index) => {
-  iconButton.onclick = () =>
-    toggleIsLiked(likeHeartArray[index], likeButtonArray[index]);
-});
-
-likeButtonArray.forEach((button, index) => {
-  button.onclick = () => toggleIsLiked(likeHeartArray[index], button);
-});
-
-function toggleIsLiked(heart, button) {
-  heart.classList.toggle('is-liked');
-  setButtonText(heart, button);
-}
-
-function setButtonText(heart, button) {
-  if ([...heart.classList].includes('is-liked')) {
-    setTimeout(
-      () => (button.querySelector('.button__text').textContent = 'Unlike'),
-      500
-    );
-  } else {
-    setTimeout(
-      () => (button.querySelector('.button__text').textContent = 'Like'),
-      500
-    );
+function loadTasks() {
+  const saved = localStorage.getItem('todoTasks');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    } catch(e) {}
   }
+  return [...items];
 }
+
+function saveTasks(tasksArray) {
+  localStorage.setItem('todoTasks', JSON.stringify(tasksArray));
+}
+
+function getTasksFromDOM() {
+  const itemsNamesElements = document.querySelectorAll('.todo-item-text');
+  const tasks = [];
+  itemsNamesElements.forEach(el => tasks.push(el.textContent));
+  return tasks;
+}
+
+function createItem(taskText) {
+  const clone = template.content.cloneNode(true);
+  const taskElement = clone.querySelector('.todo-item');
+  const textElement = taskElement.querySelector('.todo-item-text');
+  const editButton = taskElement.querySelector('.todo-button-edit');
+  const duplicateButton = taskElement.querySelector('.todo-button-duplicate');
+  const deleteButton = taskElement.querySelector('.todo-button-delete');
+  
+  textElement.textContent = taskText;
+  
+  deleteButton.addEventListener('click', () => {
+    taskElement.remove();
+    saveTasks(getTasksFromDOM());
+  });
+  
+  duplicateButton.addEventListener('click', () => {
+    const newItem = createItem(textElement.textContent);
+    listElement.prepend(newItem);
+    saveTasks(getTasksFromDOM());
+  });
+  editButton.addEventListener('click', () => {
+    textElement.setAttribute('contenteditable', 'true');
+    textElement.focus();
+  });
+  
+  textElement.addEventListener('blur', () => {
+    if (textElement.getAttribute('contenteditable') === 'true') {
+      textElement.setAttribute('contenteditable', 'false');
+      textElement.textContent = textElement.textContent.trim();
+      saveTasks(getTasksFromDOM());
+    }
+  });
+  
+  textElement.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && textElement.getAttribute('contenteditable') === 'true') {
+      e.preventDefault();
+      textElement.blur();
+    }
+  });
+  
+  return taskElement;
+}
+
+formElement.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const taskText = inputElement.value.trim();
+  if (!taskText) return alert('Введите текст задачи');
+  
+  const newTask = createItem(taskText);
+  listElement.prepend(newTask);
+  inputElement.value = '';
+  saveTasks(getTasksFromDOM());
+});
+
+function renderTasks() {
+  listElement.innerHTML = '';
+  const tasks = loadTasks();
+  tasks.forEach(task => {
+    listElement.append(createItem(task));
+  });
+}
+renderTasks();
